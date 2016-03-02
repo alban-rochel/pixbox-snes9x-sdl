@@ -1,7 +1,7 @@
-pixbox-snes9x
+pixbox-snes9x-sdl
 =========
 
-This is a fork of picodrive for my personal Pixbox project: http://pixbox-project.blogspot.fr/
+This is a fork of snes9x-sdl for my personal Pixbox project: http://pixbox-project.blogspot.fr/
 
 Check the original version of snes9x-sdl: https://github.com/domaemon/snes9x-sdl
 
