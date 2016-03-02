@@ -1,0 +1,367 @@
+--- snes9x-sdl-master/filter/blit.cpp
++++ pixbox-snes9x-sdl/filter/blit.cpp
+@@ -308,7 +308,7 @@
+ 
+ 	for (; height; height--)
+ 	{
+-		uint32	*dP1 = (uint32 *) dstPtr, *dP2 = (uint32 *) dstPtr2, *bP = (uint32 *) srcPtr, *xP = (uint32 *) deltaPtr;
++		uint32	*dP1 = (uint32 *) dstPtr/*, *dP2 = (uint32 *) dstPtr2*/, *bP = (uint32 *) srcPtr, *xP = (uint32 *) deltaPtr;
+ 		uint32	currentPixel, lastPixel, currentPixA, currentPixB, colorA, colorB;
+ 
+ 		for (int i = 0; i < (width >> 1); i++)
+@@ -331,8 +331,8 @@
+ 
+ 				dP1[0] = currentPixA;
+ 				dP1[1] = currentPixB;
+-				dP2[0] = currentPixA;
+-				dP2[1] = currentPixB;
++	//			dP2[0] = currentPixA;
++	//			dP2[1] = currentPixB;
+ 
+ 				*xP = *bP;
+ 			}
+@@ -340,15 +340,71 @@
+ 			bP++;
+ 			xP++;
+ 			dP1 += 2;
+-			dP2 += 2;
++			//dP2 += 2;
+ 		}
+ 
+ 		srcPtr   += srcRowBytes;
+ 		deltaPtr += srcRowBytes;
++memcpy(dstPtr2, dstPtr, dstRowBytes/2);
+ 		dstPtr   += dstRowBytes;
+ 		dstPtr2  += dstRowBytes;
+ 	}
+ }
++
++void S9xBlitPixSimple3x3 (uint8 *srcPtr, int srcRowBytes, uint8 *dstPtr, int dstRowBytes, int width, int height)
++{
++        uint8   *dstPtr2 = dstPtr + dstRowBytes/*, *deltaPtr = XDelta*/;
++uint8* dstPtr3=dstPtr2+dstRowBytes;
++        int offset=dstRowBytes*3;
++
++        for (; height; height--)
++        {
++                uint32  *dP1 = (uint32 *) dstPtr/*, *dP2 = (uint32 *) dstPtr2*/, *bP = (uint32 *) srcPtr/*, *xP = (uint32 *) deltaPtr*/;
++                uint32  currentPixel/*, lastPixel*/, currentPixA, currentPixB, colorA, colorB;
++
++                for (int i = 0; i < (width >> 1); i++)
++                {
++                        currentPixel = *bP;
++                        //lastPixel    = *xP;
++
++                        //if (currentPixel != lastPixel)
++                        {
++                        #ifdef MSB_FIRST
++                                colorA = (currentPixel >> 16) & 0xFFFF;
++                                colorB = (currentPixel      ) & 0xFFFF;
++                        #else
++                                colorA = (currentPixel      ) & 0xFFFF;
++                                colorB = (currentPixel >> 16) & 0xFFFF;
++                        #endif
++
++                                currentPixA = (colorA << 16) | colorA;
++                                currentPixB = (colorB << 16) | colorB;
++
++                                dP1[0] = currentPixA;
++                                dP1[1] = currentPixel;
++                                dP1[2] = currentPixB;
++        //                      dP2[0] = currentPixA;
++        //                      dP2[1] = currentPixB;
++
++                                //*xP = *bP;
++                        }
++
++                        bP++;
++                        //xP++;
++                        dP1 += 3;
++                        //dP2 += 2;
++                }
++
++                srcPtr   += srcRowBytes;
++                //deltaPtr += srcRowBytes;
++memcpy(dstPtr2, dstPtr, dstRowBytes);
++dstPtr2+=offset;
++memcpy(dstPtr3, dstPtr, dstRowBytes);
++                dstPtr   += offset;
++                dstPtr3  += offset;
++        }
++}
++
+ 
+ void S9xBlitPixBlend1x1 (uint8 *srcPtr, int srcRowBytes, uint8 *dstPtr, int dstRowBytes, int width, int height)
+ {
+--- snes9x-sdl-master/filter/blit.h
++++ pixbox-snes9x-sdl/filter/blit.h
+@@ -194,6 +194,7 @@
+ void S9xBlitPixSimple1x2 (uint8 *, int, uint8 *, int, int, int);
+ void S9xBlitPixSimple2x1 (uint8 *, int, uint8 *, int, int, int);
+ void S9xBlitPixSimple2x2 (uint8 *, int, uint8 *, int, int, int);
++void S9xBlitPixSimple3x3 (uint8 *, int, uint8 *, int, int, int);
+ void S9xBlitPixBlend1x1 (uint8 *, int, uint8 *, int, int, int);
+ void S9xBlitPixBlend2x1 (uint8 *, int, uint8 *, int, int, int);
+ void S9xBlitPixTV1x2 (uint8 *, int, uint8 *, int, int, int);
+Only in pixbox-snes9x-sdl: sdl/Makefile
+--- snes9x-sdl-master/sdl/sdlinput.cpp
++++ pixbox-snes9x-sdl/sdl/sdlinput.cpp
+@@ -247,7 +247,7 @@
+ 	if (!conf.GetBool("Unix::ClearAllControls", false))
+ 	{
+ 		// Using 'Joypad# Axis'
+-		keymaps.push_back(strpair_t("J00:Axis0",      "Joypad1 Axis Left/Right T=50%"));
++/*		keymaps.push_back(strpair_t("J00:Axis0",      "Joypad1 Axis Left/Right T=50%"));
+ 		keymaps.push_back(strpair_t("J00:Axis1",      "Joypad1 Axis Up/Down T=50%"));
+ 
+ 		keymaps.push_back(strpair_t("J00:B0",         "Joypad1 X"));
+@@ -258,22 +258,36 @@
+ 		keymaps.push_back(strpair_t("J00:B6",         "Joypad1 L"));
+ 		keymaps.push_back(strpair_t("J00:B7",         "Joypad1 R"));
+ 		keymaps.push_back(strpair_t("J00:B8",         "Joypad1 Select"));
+-		keymaps.push_back(strpair_t("J00:B11",        "Joypad1 Start"));
++		keymaps.push_back(strpair_t("J00:B11",        "Joypad1 Start"));*/
+ 		keymaps.push_back(strpair_t("K00:SDLK_RIGHT",        "Joypad1 Right"));
+ 		keymaps.push_back(strpair_t("K00:SDLK_LEFT",         "Joypad1 Left"));
+ 		keymaps.push_back(strpair_t("K00:SDLK_DOWN",         "Joypad1 Down"));
+ 		keymaps.push_back(strpair_t("K00:SDLK_UP",           "Joypad1 Up"));
+-		keymaps.push_back(strpair_t("K00:SDLK_RETURN",       "Joypad1 Start"));
+-		keymaps.push_back(strpair_t("K00:SDLK_SPACE",        "Joypad1 Select"));
++		keymaps.push_back(strpair_t("K00:SDLK_1",       "Joypad1 Start"));
++		keymaps.push_back(strpair_t("K00:SDLK_x",        "Joypad1 Select"));
++		keymaps.push_back(strpair_t("K00:SDLK_s",            "Joypad1 B"));
+ 		keymaps.push_back(strpair_t("K00:SDLK_d",            "Joypad1 A"));
+-		keymaps.push_back(strpair_t("K00:SDLK_c",            "Joypad1 B"));
+-		keymaps.push_back(strpair_t("K00:SDLK_s",            "Joypad1 X"));
+-		keymaps.push_back(strpair_t("K00:SDLK_x",            "Joypad1 Y"));
+-		keymaps.push_back(strpair_t("K00:SDLK_a",            "Joypad1 L"));
++		keymaps.push_back(strpair_t("K00:SDLK_a",            "Joypad1 Y"));
++		keymaps.push_back(strpair_t("K00:SDLK_z",            "Joypad1 X"));
++		keymaps.push_back(strpair_t("K00:SDLK_w",            "Joypad1 L"));
+ 		keymaps.push_back(strpair_t("K00:SDLK_z",            "Joypad1 R"));
+ 
++                keymaps.push_back(strpair_t("K00:SDLK_l",        "Joypad2 Right"));
++                keymaps.push_back(strpair_t("K00:SDLK_j",         "Joypad2 Left"));
++                keymaps.push_back(strpair_t("K00:SDLK_k",         "Joypad2 Down"));
++                keymaps.push_back(strpair_t("K00:SDLK_i",           "Joypad2 Up"));
++                keymaps.push_back(strpair_t("K00:SDLK_2",       "Joypad2 Start"));
++                keymaps.push_back(strpair_t("K00:SDLK_r",        "Joypad2 Select"));
++                keymaps.push_back(strpair_t("K00:SDLK_g",            "Joypad2 B"));
++                keymaps.push_back(strpair_t("K00:SDLK_h",            "Joypad2 A"));
++                keymaps.push_back(strpair_t("K00:SDLK_f",            "Joypad2 Y"));
++                keymaps.push_back(strpair_t("K00:SDLK_y",            "Joypad2 X"));
++                keymaps.push_back(strpair_t("K00:SDLK_t",            "Joypad2 L"));
++                keymaps.push_back(strpair_t("K00:SDLK_v",            "Joypad2 R"));
++
++
+ 		// domaemon: *) GetSDLKeyFromName().
+-		name_sdlkeysym["SDLK_s"] = SDLK_s;
++/*		name_sdlkeysym["SDLK_s"] = SDLK_s;
+ 		name_sdlkeysym["SDLK_d"] = SDLK_d;
+ 		name_sdlkeysym["SDLK_x"] = SDLK_x;
+ 		name_sdlkeysym["SDLK_c"] = SDLK_c;
+@@ -284,7 +298,37 @@
+ 		name_sdlkeysym["SDLK_RIGHT"] = SDLK_RIGHT;
+ 		name_sdlkeysym["SDLK_LEFT"] = SDLK_LEFT;
+ 		name_sdlkeysym["SDLK_RETURN"] = SDLK_RETURN;
+-		name_sdlkeysym["SDLK_SPACE"] = SDLK_SPACE;
++		name_sdlkeysym["SDLK_SPACE"] = SDLK_SPACE;*/
++ name_sdlkeysym["SDLK_LEFT"] = SDLK_LEFT;
++ name_sdlkeysym["SDLK_RIGHT"] = SDLK_RIGHT;
++ name_sdlkeysym["SDLK_UP"] = SDLK_UP;
++ name_sdlkeysym["SDLK_DOWN"] = SDLK_DOWN;
++ name_sdlkeysym["SDLK_1"] = SDLK_1;
++ name_sdlkeysym["SDLK_w"] = SDLK_w;
++ name_sdlkeysym["SDLK_s"] = SDLK_s;
++ name_sdlkeysym["SDLK_d"] = SDLK_d;
++ name_sdlkeysym["SDLK_e"] = SDLK_e;
++ name_sdlkeysym["SDLK_z"] = SDLK_z;
++ name_sdlkeysym["SDLK_a"] = SDLK_a;
++ name_sdlkeysym["SDLK_q"] = SDLK_q;
++
++ name_sdlkeysym["SDLK_l"] = SDLK_l;
++ name_sdlkeysym["SDLK_j"] = SDLK_j;
++ name_sdlkeysym["SDLK_k"] = SDLK_k;
++ name_sdlkeysym["SDLK_i"] = SDLK_i;
++ name_sdlkeysym["SDLK_2"] = SDLK_2;
++ name_sdlkeysym["SDLK_t"] = SDLK_t;
++ name_sdlkeysym["SDLK_g"] = SDLK_g;
++ name_sdlkeysym["SDLK_h"] = SDLK_h;
++ name_sdlkeysym["SDLK_y"] = SDLK_y;
++ name_sdlkeysym["SDLK_v"] = SDLK_v;
++ name_sdlkeysym["SDLK_f"] = SDLK_f;
++ name_sdlkeysym["SDLK_r"] = SDLK_r;
++
++
++
++
++
+ 	}
+ 
+ 	return;
+@@ -338,7 +382,7 @@
+ 		case SDL_KEYDOWN:
+ 		case SDL_KEYUP:
+ 			// domaemon: not sure it's the best idea, but reserving the SDLK_q for quit.
+-			if (event.key.keysym.sym == SDLK_q)
++			if (event.key.keysym.sym == SDLK_ESCAPE)
+ 			{
+ 				quit_state = TRUE;
+ 			} 
+--- snes9x-sdl-master/sdl/sdlmain.cpp
++++ pixbox-snes9x-sdl/sdl/sdlmain.cpp
+@@ -789,7 +789,7 @@
+ 	Settings.FrameTimeNTSC = 16667;
+ 	Settings.SixteenBitSound = TRUE;
+ 	Settings.Stereo = TRUE;
+-	Settings.SoundPlaybackRate = 32000;
++	Settings.SoundPlaybackRate = 20480;
+ 	Settings.SoundInputRate = 32000;
+ 	Settings.SupportHiRes = TRUE;
+ 	Settings.Transparency = TRUE;
+--- snes9x-sdl-master/sdl/sdlvideo.cpp
++++ pixbox-snes9x-sdl/sdl/sdlvideo.cpp
+@@ -190,7 +190,7 @@
+         {
+                 GUI.sdl_screen = SDL_SetVideoMode(0, 0, 16, SDL_FULLSCREEN);
+         } else {
+-                GUI.sdl_screen = SDL_SetVideoMode(SNES_WIDTH * 2, SNES_HEIGHT_EXTENDED * 2, 16, 0);
++                GUI.sdl_screen = SDL_SetVideoMode(SNES_WIDTH * 3, SNES_HEIGHT_EXTENDED * 3, 16, 0);
+         }
+ 
+         if (GUI.sdl_screen == NULL)
+@@ -235,13 +235,13 @@
+ 
+ 	// domaemon: The whole unix code basically assumes output=(original * 2);
+ 	// This way the code can handle the SNES filters, which does the 2X.
+-	GFX.Pitch = SNES_WIDTH * 2 * 2;
+-	GUI.snes_buffer = (uint8 *) calloc(GFX.Pitch * ((SNES_HEIGHT_EXTENDED + 4) * 2), 1);
++	GFX.Pitch = SNES_WIDTH * 3 * 2;
++	GUI.snes_buffer = (uint8 *) calloc(GFX.Pitch * ((SNES_HEIGHT_EXTENDED + 4) * 3), 1);
+ 	if (!GUI.snes_buffer)
+ 		FatalError("Failed to allocate GUI.snes_buffer.");
+ 
+ 	// domaemon: Add 2 lines before drawing.
+-	GFX.Screen = (uint16 *) (GUI.snes_buffer + (GFX.Pitch * 2 * 2));
++	GFX.Screen = (uint16 *) (GUI.snes_buffer + (GFX.Pitch * 3 * 2));
+ 
+ 	if (GUI.fullscreen == TRUE)
+ 	{
+@@ -250,49 +250,53 @@
+ 		int offset_byte;
+ 
+ 
+-		offset_height_pix = (GUI.sdl_screen->h - (SNES_HEIGHT * 2)) / 2;
+-		offset_width_pix = (GUI.sdl_screen->w - (SNES_WIDTH * 2)) / 2;
++		offset_height_pix = (GUI.sdl_screen->h - (SNES_HEIGHT * 3)) / 2;
++		offset_width_pix = (GUI.sdl_screen->w - (SNES_WIDTH * 3)) / 2;
+ 		
+ 		offset_byte = (GUI.sdl_screen->w * offset_height_pix + offset_width_pix) * 2;
+ 
+ 		GUI.blit_screen       = (uint8 *) GUI.sdl_screen->pixels + offset_byte;
+-		GUI.blit_screen_pitch = GUI.sdl_screen->w * 2;
++		GUI.blit_screen_pitch = GUI.sdl_screen->w * 3;
+ 	}
+ 	else 
+ 	{
+ 		GUI.blit_screen       = (uint8 *) GUI.sdl_screen->pixels;
+-		GUI.blit_screen_pitch = SNES_WIDTH * 2 * 2; // window size =(*2); 2 byte pir pixel =(*2)
++		GUI.blit_screen_pitch = SNES_WIDTH * 3 * 2; // window size =(*2); 2 byte pir pixel =(*2)
+ 	}
+ 
+ 	S9xGraphicsInit();
+ }
+-
++//#include <sys/time.h>
+ void S9xPutImage (int width, int height)
+ {
++//struct timeval t1, t2;
++//gettimeofday(&t1, NULL);
++//printf("width %d SNES_WIDTH %d height %d SNES_HEIGHT_EXTENDED %d\n", width, SNES_WIDTH, height, SNES_HEIGHT_EXTENDED);
+ 	static int	prevWidth = 0, prevHeight = 0;
+-	int			copyWidth, copyHeight;
++//	int			copyWidth, copyHeight;
+ 	Blitter		blitFn = NULL;
+ 
+-	if (GUI.video_mode == VIDEOMODE_BLOCKY || GUI.video_mode == VIDEOMODE_TV || GUI.video_mode == VIDEOMODE_SMOOTH)
+-		if ((width <= SNES_WIDTH) && ((prevWidth != width) || (prevHeight != height)))
++	if (likely(GUI.video_mode == VIDEOMODE_BLOCKY || GUI.video_mode == VIDEOMODE_TV || GUI.video_mode == VIDEOMODE_SMOOTH))
++		if (unlikely((width <= SNES_WIDTH) && ((prevWidth != width) || (prevHeight != height))))
+ 			S9xBlitClearDelta();
+ 
+-	if (width <= SNES_WIDTH)
++
++/*	if (width <= SNES_WIDTH)
+ 	{
+ 		if (height > SNES_HEIGHT_EXTENDED)
+ 		{
+-			copyWidth  = width * 2;
++			copyWidth  = width * 3;
+ 			copyHeight = height;
+ 			blitFn = S9xBlitPixSimple2x1;
+ 		}
+ 		else
+ 		{
+-			copyWidth  = width  * 2;
+-			copyHeight = height * 2;
++			copyWidth  = width  * 3;
++			copyHeight = height * 3;
+ 
+ 			switch (GUI.video_mode)
+ 			{
+-				case VIDEOMODE_BLOCKY:		blitFn = S9xBlitPixSimple2x2;		break;
++				case VIDEOMODE_BLOCKY:		blitFn = S9xBlitPixSimple3x3;		break;
+ 				case VIDEOMODE_TV:			blitFn = S9xBlitPixTV2x2;			break;
+ 				case VIDEOMODE_SMOOTH:		blitFn = S9xBlitPixSmooth2x2;		break;
+ 				case VIDEOMODE_SUPEREAGLE:	blitFn = S9xBlitPixSuperEagle16;	break;
+@@ -320,17 +324,20 @@
+ 		copyWidth  = width;
+ 		copyHeight = height;
+ 		blitFn = S9xBlitPixSimple1x1;
+-	}
++	}*/
++//copyWidth  = width  * 3;
++//copyHeight = height * 3;
++blitFn = S9xBlitPixSimple3x3;
+ 
+ 
+ 	// domaemon: this is place where the rendering buffer size should be changed?
+ 	blitFn((uint8 *) GFX.Screen, GFX.Pitch, GUI.blit_screen, GUI.blit_screen_pitch, width, height);
+ 
+ 	// domaemon: does the height change on the fly?
+-	if (height < prevHeight)
++	if (unlikely(height < prevHeight))
+ 	{
+ 		int	p = GUI.blit_screen_pitch >> 2;
+-		for (int y = SNES_HEIGHT * 2; y < SNES_HEIGHT_EXTENDED * 2; y++)
++		for (int y = SNES_HEIGHT * 3; y < SNES_HEIGHT_EXTENDED * 3; y++)
+ 		{
+ 			uint32	*d = (uint32 *) (GUI.blit_screen + y * GUI.blit_screen_pitch);
+ 			for (int x = 0; x < p; x++)
+@@ -338,10 +345,13 @@
+ 		}
+ 	}
+ 
+-	Repaint(TRUE);
++//	Repaint(TRUE);
++	SDL_Flip(GUI.sdl_screen); // inlining, no arg stacking
+ 
+ 	prevWidth  = width;
+ 	prevHeight = height;
++//gettimeofday(&t2, NULL);
++//printf("elapsed %f\n", (t2.tv_sec*1000.+t2.tv_usec/1000.)-(t1.tv_sec*1000.+t1.tv_usec/1000.));
+ }
+ 
+ static void Repaint (bool8 isFrameBoundry)
+--- snes9x-sdl-master/snes9x.h
++++ pixbox-snes9x-sdl/snes9x.h
+@@ -183,6 +183,9 @@
+ #define VERSION	"1.53"
+ #endif
+ 
++#define likely(x)       __builtin_expect((x),1)
++#define unlikely(x)     __builtin_expect((x),0)
++
+ #include "port.h"
+ #include "65c816.h"
+ #include "messages.h"
